@@ -10,6 +10,7 @@ import {
   loginVendor,
 } from "@/lib/api";
 import { LoginPayload, ProductPayload } from "@/types/api";
+import { Sidebar } from "@/components/Sidebar";
 
 type ProductRecord = ProductPayload & {
   id?: number | string;
@@ -68,7 +69,6 @@ export default function Home() {
   const [keyword, setKeyword] = useState("");
   const [orderKeyword, setOrderKeyword] = useState("");
   const [activeTab, setActiveTab] = useState<SidebarTab>("dashboard");
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [busy, setBusy] = useState({ login: false, create: false, refresh: false });
   const [error, setError] = useState("");
@@ -339,79 +339,18 @@ export default function Home() {
             </form>
           </section>
         ) : (
-          <section className="relative">
-            <button
-              type="button"
-              onClick={() => setIsDrawerOpen(true)}
-              className="glass mb-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-white/5"
-            >
-              <span className="text-xl leading-none">☰</span>
-              Menu
-            </button>
+          <section className="flex gap-6">
+            <Sidebar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onLogout={() => {
+                setToken("");
+                setProducts([]);
+                setOrders([]);
+              }}
+            />
 
-            {isDrawerOpen ? (
-              <button
-                type="button"
-                onClick={() => setIsDrawerOpen(false)}
-                className="fixed inset-0 z-30 bg-black/45"
-                aria-label="Close drawer backdrop"
-              />
-            ) : null}
-
-            <aside
-              className={`fixed left-4 top-6 z-40 w-[280px] rounded-2xl p-4 transition-transform duration-300 ${
-                isDrawerOpen ? "translate-x-0" : "-translate-x-[125%]"
-              } glass`}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm text-emerald-300">Authenticated</p>
-                <button
-                  type="button"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="rounded-md border px-2 py-1 text-xs hover:bg-white/5"
-                >
-                  Close
-                </button>
-              </div>
-              <nav className="space-y-2">
-                {[
-                  { id: "dashboard", label: "Dashboard" },
-                  { id: "add-products", label: "Add Products" },
-                  { id: "orders", label: "Orders" },
-                  { id: "products", label: "Products" },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(item.id as SidebarTab);
-                      setIsDrawerOpen(false);
-                    }}
-                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                      activeTab === item.id
-                        ? "bg-cyan-500 text-slate-950 font-semibold"
-                        : "border hover:bg-white/5"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-              <button
-                type="button"
-                onClick={() => {
-                  setToken("");
-                  setProducts([]);
-                  setOrders([]);
-                  setIsDrawerOpen(false);
-                }}
-                className="mt-4 w-full rounded-lg border px-3 py-2 text-sm hover:bg-white/5"
-              >
-                Logout
-              </button>
-            </aside>
-
-            <section className="space-y-6">
+            <section className="flex-1 space-y-6">
               {activeTab === "dashboard" ? (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <MetricCard label="Products" value={metrics.total.toString()} />
