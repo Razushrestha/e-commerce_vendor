@@ -294,19 +294,33 @@ export default function Home() {
     return { totalOrders, pending, completed };
   }, [orders]);
 
+  const salesMetrics = useMemo(() => {
+    const totalSells = orders.reduce(
+      (sum, order) => sum + Number(order.total_amount ?? order.amount ?? 0),
+      0,
+    );
+    const commissionAmount = totalSells * 0.2;
+    const receivableAmount = totalSells * 0.8;
+    return { totalSells, receivableAmount, commissionAmount };
+  }, [orders]);
+
   const isAuthenticated = Boolean(token);
 
   return (
     <main className="gradient-surface min-h-screen px-4 py-8 text-slate-100 md:px-10">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <section
+        className={`mx-auto flex w-full max-w-7xl flex-col gap-6 ${
+          !isAuthenticated ? "min-h-screen items-center justify-center py-0" : ""
+        }`}
+      >
         {error ? (
-          <div className="glass rounded-xl border border-red-400/35 bg-red-500/15 p-3 text-sm text-red-100">
+          <div className="glass rounded-xl border border-red-300/30 bg-red-900/20 p-3 text-sm text-red-100">
             {error}
           </div>
         ) : null}
 
         {!isAuthenticated ? (
-          <section className="mx-auto w-full max-w-md">
+          <section className="w-full max-w-md">
             <form onSubmit={onLogin} className="glass rounded-2xl p-5">
               <h2 className="text-lg font-medium">Vendor Login</h2>
               <p className="mt-1 text-sm text-slate-300">
@@ -319,19 +333,19 @@ export default function Home() {
                   onChange={(e) =>
                     setCredentials({ ...credentials, email: e.target.value, username: e.target.value })
                   }
-                  className="w-full rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
+                  className="w-full rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
                 />
                 <input
                   type="password"
                   placeholder="Password"
                   value={credentials.password}
                   onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  className="w-full rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
+                  className="w-full rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
                 />
                 <button
                   type="submit"
                   disabled={busy.login}
-                  className="w-full rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+                  className="w-full rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#0b1b3a] transition hover:bg-slate-200 disabled:opacity-60"
                 >
                   {busy.login ? "Signing in..." : "Login"}
                 </button>
@@ -364,7 +378,7 @@ export default function Home() {
               } glass`}
             >
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm text-emerald-300">Authenticated</p>
+                <p className="text-sm text-slate-200">Authenticated</p>
                 <button
                   type="button"
                   onClick={() => setIsDrawerOpen(false)}
@@ -389,7 +403,7 @@ export default function Home() {
                     }}
                     className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                       activeTab === item.id
-                        ? "bg-cyan-500 text-slate-950 font-semibold"
+                        ? "bg-white text-[#0b1b3a] font-semibold"
                         : "border hover:bg-white/5"
                     }`}
                   >
@@ -414,6 +428,15 @@ export default function Home() {
             <section className="space-y-6">
               {activeTab === "dashboard" ? (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <MetricCard label="Total Sells" value={`Rs ${salesMetrics.totalSells.toFixed(2)}`} />
+                  <MetricCard
+                    label="Receivable Amount"
+                    value={`Rs ${salesMetrics.receivableAmount.toFixed(2)}`}
+                  />
+                  <MetricCard
+                    label="Commission Amount"
+                    value={`Rs ${salesMetrics.commissionAmount.toFixed(2)}`}
+                  />
                   <MetricCard label="Products" value={metrics.total.toString()} />
                   <MetricCard label="Inventory Units" value={metrics.inventory.toString()} />
                   <MetricCard label="Inventory Value" value={`Rs ${metrics.value.toFixed(2)}`} />
@@ -424,72 +447,112 @@ export default function Home() {
               ) : null}
 
               {activeTab === "add-products" ? (
-                <form onSubmit={onAddProduct} className="glass rounded-2xl p-5">
-                  <h2 className="text-lg font-medium">Add Product</h2>
-                  <div className="mt-4 space-y-3">
+                <form onSubmit={onAddProduct} className="glass rounded-2xl p-6 md:p-7">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white">Add Product</h2>
+                      <p className="mt-1 text-sm text-slate-300">
+                        Create a new listing with pricing and image.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white">
+                      Vendor Panel
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
                     <Input
-                      label="Name"
+                      label="Product Name"
                       value={String(product.name ?? "")}
                       onChange={(value) => setProduct({ ...product, name: value })}
                     />
-                    <Input
-                      label="Description"
-                      value={String(product.description ?? "")}
-                      onChange={(value) => setProduct({ ...product, description: value })}
-                    />
-                    <Input
-                      label="Price"
-                      type="number"
-                      value={String(product.price ?? 0)}
-                      onChange={(value) => setProduct({ ...product, price: Number(value) })}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-300">Description</span>
+                      <textarea
+                        rows={3}
+                        value={String(product.description ?? "")}
+                        onChange={(e) => setProduct({ ...product, description: e.target.value })}
+                        className="w-full resize-y rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
+                        placeholder="Brief product description..."
+                      />
+                    </label>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Input
+                        label="Price (Rs)"
+                        type="number"
+                        value={String(product.price ?? 0)}
+                        onChange={(value) => setProduct({ ...product, price: Number(value) })}
+                      />
                       <Input
                         label="Stock"
                         type="number"
                         value={String(product.stock ?? 0)}
                         onChange={(value) => setProduct({ ...product, stock: Number(value) })}
                       />
-                      <label className="block">
-                        <span className="mb-1 block text-xs text-slate-300">Category</span>
-                        <select
-                          value={String(product.category ?? "")}
-                          onChange={(e) =>
-                            setProduct({
-                              ...product,
-                              category: e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          className="w-full rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
-                        >
-                          <option value="">No category</option>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.name ?? cat.title ?? `Category ${cat.id}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
                     </div>
+                    <div className="rounded-lg border border-white/15 bg-[#0f2146] p-3 text-sm">
+                      <p className="text-white">
+                        Vendor Receivable (80%):{" "}
+                        <span className="font-semibold">
+                          Rs {(Number(product.price ?? 0) * 0.8).toFixed(2)}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-slate-300">
+                        Commission (20%):{" "}
+                        <span className="font-semibold text-white">
+                          Rs {(Number(product.price ?? 0) * 0.2).toFixed(2)}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Formula is automatic for every product price.
+                      </p>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-slate-300">Category</span>
+                      <select
+                        value={String(product.category ?? "")}
+                        onChange={(e) =>
+                          setProduct({
+                            ...product,
+                            category: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className="w-full rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
+                      >
+                        <option value="">No category</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name ?? cat.title ?? `Category ${cat.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
                     <label className="block">
                       <span className="mb-1 block text-xs text-slate-300">Product Image</span>
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setProductImage(e.target.files?.[0] ?? null)}
-                        className="w-full rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500 file:px-3 file:py-1 file:text-slate-950 file:font-semibold focus:ring-2 focus:ring-cyan-400"
-                      />
-                      {productImage ? (
-                        <p className="mt-1 text-xs text-slate-400">{productImage.name}</p>
-                      ) : null}
+                      <div className="rounded-lg border border-dashed border-white/30 bg-[#0f2146] p-3">
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setProductImage(e.target.files?.[0] ?? null)}
+                          className="w-full rounded-lg border bg-[#081633] px-3 py-2 text-sm outline-none file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-3 file:py-1 file:text-[#0b1b3a] file:font-semibold focus:ring-2 focus:ring-white/30"
+                        />
+                        <p className="mt-2 text-xs text-slate-400">
+                          {productImage ? `Selected: ${productImage.name}` : "PNG, JPG, WEBP supported"}
+                        </p>
+                      </div>
                     </label>
+
                     <button
                       type="submit"
                       disabled={busy.create}
-                      className="w-full rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                      className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0b1b3a] transition hover:bg-slate-200 disabled:opacity-60"
                     >
-                      {busy.create ? "Adding..." : "Create Product"}
+                      {busy.create ? "Adding Product..." : "Create Product"}
                     </button>
                   </div>
                 </form>
@@ -504,7 +567,7 @@ export default function Home() {
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                         placeholder="Search products..."
-                        className="rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
+                        className="rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
                       />
                       <button
                         type="button"
@@ -577,7 +640,7 @@ export default function Home() {
                         value={orderKeyword}
                         onChange={(e) => setOrderKeyword(e.target.value)}
                         placeholder="Search orders..."
-                        className="rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
+                        className="rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
                       />
                       <button
                         type="button"
@@ -598,12 +661,8 @@ export default function Home() {
                           <th className="px-3 py-2">Address</th>
                           <th className="px-3 py-2">Phone</th>
                           <th className="px-3 py-2">Products</th>
-                          <th className="px-3 py-2">Notes</th>
-                          <th className="px-3 py-2">Payment</th>
                           <th className="px-3 py-2">Amount</th>
-                          <th className="px-3 py-2">Shipping</th>
                           <th className="px-3 py-2">Status</th>
-                          <th className="px-3 py-2">Created</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -616,7 +675,7 @@ export default function Home() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedOrder(item)}
-                                className="text-left text-cyan-300 hover:underline"
+                                className="text-left text-white hover:underline"
                               >
                                 {String(item.order_id ?? item.id ?? "-")}
                               </button>
@@ -635,25 +694,15 @@ export default function Home() {
                             <td className="px-3 py-2 max-w-[280px] break-words">
                               {getOrderProductNames(item)}
                             </td>
-                            <td className="px-3 py-2">{String(item.notes ?? "-")}</td>
-                            <td className="px-3 py-2">{String(item.payment_type ?? "-")}</td>
                             <td className="px-3 py-2">
                               Rs {Number(item.total_amount ?? item.amount ?? 0).toFixed(2)}
                             </td>
-                            <td className="px-3 py-2">
-                              Rs {Number(item.shipping_charge ?? 0).toFixed(2)}
-                            </td>
                             <td className="px-3 py-2">{String(item.status ?? "-")}</td>
-                            <td className="px-3 py-2">
-                              {item.created_at
-                                ? new Date(String(item.created_at)).toLocaleString()
-                                : "-"}
-                            </td>
                           </tr>
                         ))}
                         {!filteredOrders.length ? (
                           <tr>
-                            <td colSpan={11} className="px-3 py-6 text-center text-slate-400">
+                            <td colSpan={7} className="px-3 py-6 text-center text-slate-400">
                               No orders to display.
                             </td>
                           </tr>
@@ -754,7 +803,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <article className="glass rounded-2xl p-4">
       <p className="text-xs uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-cyan-200">{value}</p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
     </article>
   );
 }
@@ -777,7 +826,7 @@ function Input({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border bg-slate-900/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
+        className="w-full rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
       />
     </label>
   );
