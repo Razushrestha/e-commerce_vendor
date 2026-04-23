@@ -10,10 +10,9 @@ export type ProductPayload = {
   description?: string;
   price: number;
   stock: number;
-  category?: number | null;
+  category?: number | string | null;
   is_active: boolean;
-  image?: string | File;
-  [key: string]: unknown;
+  image?: File | null;
 };
 
 export type ApiState<T> = {

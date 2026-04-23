@@ -1,24 +1,15 @@
-const CATEGORIES_API = "http://36.253.137.34:8004/api/categories/";
+import { buildUpstreamHeaders, proxyResponse } from "../route-utils";
 
-function getAuthHeader(request: Request) {
-  const auth = request.headers.get("authorization");
-  return auth ?? "";
-}
+const CATEGORIES_API = "http://36.253.137.34:8004/api/categories/";
 
 export async function GET(request: Request) {
   try {
     const upstream = await fetch(CATEGORIES_API, {
       method: "GET",
-      headers: {
-        Authorization: getAuthHeader(request),
-      },
+      headers: buildUpstreamHeaders(request),
     });
 
-    const responseText = await upstream.text();
-    return new Response(responseText, {
-      status: upstream.status,
-      headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
-    });
+    return proxyResponse(upstream);
   } catch (error) {
     return Response.json(
       {

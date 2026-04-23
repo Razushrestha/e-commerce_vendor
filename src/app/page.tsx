@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   addProduct,
+  deleteProduct,
   extractToken,
   fetchCategories,
   fetchVendorOrders,
   fetchProducts,
   loginVendor,
+  updateProduct,
 } from "@/lib/api";
 import { LoginPayload, ProductPayload } from "@/types/api";
 
@@ -17,7 +19,7 @@ type ProductRecord = ProductPayload & {
 };
 
 type CategoryRecord = {
-  id: number;
+  id: number | string;
   name?: string;
   title?: string;
 };
@@ -70,6 +72,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<SidebarTab>("dashboard");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null);
   const [busy, setBusy] = useState({ login: false, create: false, refresh: false });
   const [error, setError] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -144,28 +147,83 @@ export default function Home() {
     if (!token) return;
     setBusy((prev) => ({ ...prev, create: true }));
     setError("");
+
+    const payload = {
+      ...product,
+      price: Number(product.price),
+      stock: Number(product.stock),
+      category:
+        product.category === null || product.category === undefined
+          ? null
+          : Number.isNaN(Number(product.category))
+          ? product.category
+          : Number(product.category),
+      image: productImage ?? undefined,
+    };
+
     try {
-      const payload = {
-        ...product,
-        price: Number(product.price),
-        stock: Number(product.stock),
-        category:
-          product.category === null || product.category === undefined
-            ? null
-            : Number(product.category),
-        image: productImage ?? undefined,
-      };
-      const created = (await addProduct(token, payload)) as ProductRecord;
-      setProducts((prev) => [created, ...prev]);
+      if (editingProduct && editingProduct.id !== undefined) {
+        const updated = (await updateProduct(token, editingProduct.id, payload)) as ProductRecord;
+        setProducts((prev) =>
+          prev.map((item) => (String(item.id) === String(editingProduct.id) ? updated : item)),
+        );
+        setEditingProduct(null);
+      } else {
+        const created = (await addProduct(token, payload)) as ProductRecord;
+        setProducts((prev) => [created, ...prev]);
+      }
+
       setProduct({ ...defaultProduct, category: product.category });
       setProductImage(null);
       if (imageInputRef.current) {
         imageInputRef.current.value = "";
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Product creation failed.");
+      setError(e instanceof Error ? e.message : "Product save failed.");
     } finally {
       setBusy((prev) => ({ ...prev, create: false }));
+    }
+  }
+
+  async function onStartEdit(item: ProductRecord) {
+    setEditingProduct(item);
+    setProduct({
+      name: String(item.name ?? ""),
+      description: String(item.description ?? ""),
+      price: Number(item.price ?? 0),
+      stock: Number(item.stock ?? 0),
+      category: item.category ?? null,
+      is_active: Boolean(item.is_active),
+      image: item.image ?? undefined,
+    });
+    setProductImage(null);
+  }
+
+  function onCancelEdit() {
+    setEditingProduct(null);
+    setProduct({ ...defaultProduct, category: product.category });
+    setProductImage(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
+
+  async function onDeleteProduct(id: string | number | undefined) {
+    if (!id || !token) return;
+    if (!window.confirm("Delete this product?")) return;
+
+    setBusy((prev) => ({ ...prev, refresh: true }));
+    setError("");
+    try {
+      await deleteProduct(token, id);
+      setProducts((prev) => prev.filter((item) => String(item.id) !== String(id)));
+      if (editingProduct && String(editingProduct.id) === String(id)) {
+        onCancelEdit();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete product.");
+    } finally {
+      setBusy((prev) => ({ ...prev, refresh: false }));
     }
   }
 
@@ -514,12 +572,18 @@ export default function Home() {
                       <span className="mb-1 block text-xs text-slate-300">Category</span>
                       <select
                         value={String(product.category ?? "")}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
                           setProduct({
                             ...product,
-                            category: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
+                            category:
+                              rawValue === ""
+                                ? null
+                                : Number.isNaN(Number(rawValue))
+                                ? rawValue
+                                : Number(rawValue),
+                          });
+                        }}
                         className="w-full rounded-lg border bg-[#0f2146] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-white/30"
                       >
                         <option value="">No category</option>
@@ -547,13 +611,24 @@ export default function Home() {
                       </div>
                     </label>
 
-                    <button
-                      type="submit"
-                      disabled={busy.create}
-                      className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0b1b3a] transition hover:bg-slate-200 disabled:opacity-60"
-                    >
-                      {busy.create ? "Adding Product..." : "Create Product"}
-                    </button>
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="submit"
+                        disabled={busy.create}
+                        className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#0b1b3a] transition hover:bg-slate-200 disabled:opacity-60"
+                      >
+                        {busy.create ? (editingProduct ? "Saving product..." : "Adding Product...") : editingProduct ? "Update Product" : "Create Product"}
+                      </button>
+                      {editingProduct ? (
+                        <button
+                          type="button"
+                          onClick={onCancelEdit}
+                          className="w-full rounded-lg border border-white/20 bg-transparent px-4 py-2.5 text-sm text-white transition hover:bg-white/5"
+                        >
+                          Cancel Edit
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </form>
               ) : null}
@@ -588,6 +663,7 @@ export default function Home() {
                           <th className="px-3 py-2">Price</th>
                           <th className="px-3 py-2">Stock</th>
                           <th className="px-3 py-2">Category</th>
+                          <th className="px-3 py-2">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -616,11 +692,27 @@ export default function Home() {
                             <td className="px-3 py-2">Rs {Number(item.price ?? 0).toFixed(2)}</td>
                             <td className="px-3 py-2">{Number(item.stock ?? 0)}</td>
                             <td className="px-3 py-2">{String(item.category ?? "-")}</td>
+                            <td className="px-3 py-2 space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => onStartEdit(item)}
+                                className="rounded-lg border px-2 py-1 text-xs hover:bg-white/5"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onDeleteProduct(item.id)}
+                                className="rounded-lg border border-red-400 px-2 py-1 text-xs text-red-200 hover:bg-red-500/10"
+                              >
+                                Delete
+                              </button>
+                            </td>
                           </tr>
                         ))}
                         {!filteredProducts.length ? (
                           <tr>
-                            <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
+                            <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
                               No products to display.
                             </td>
                           </tr>

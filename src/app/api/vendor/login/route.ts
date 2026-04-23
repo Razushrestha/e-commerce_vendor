@@ -1,21 +1,18 @@
+import { buildUpstreamHeaders, proxyResponse } from "../route-utils";
+
 const LOGIN_API =
   process.env.NEXT_PUBLIC_LOGIN_API ??
   "http://36.253.137.34:8010/api/auth/sso/login/";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.text();
     const upstream = await fetch(LOGIN_API, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
+      headers: buildUpstreamHeaders(request),
+      body: await request.arrayBuffer(),
     });
 
-    const responseText = await upstream.text();
-    return new Response(responseText, {
-      status: upstream.status,
-      headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
-    });
+    return proxyResponse(upstream);
   } catch (error) {
     return Response.json(
       {
