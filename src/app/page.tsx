@@ -187,6 +187,7 @@ export default function Home() {
 
   async function onStartEdit(item: ProductRecord) {
     setEditingProduct(item);
+    setActiveTab("add-products");
     setProduct({
       name: String(item.name ?? ""),
       description: String(item.description ?? ""),
@@ -508,9 +509,11 @@ export default function Home() {
                 <form onSubmit={onAddProduct} className="glass rounded-2xl p-6 md:p-7">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-white">Add Product</h2>
+                      <h2 className="text-xl font-semibold text-white">
+                        {editingProduct ? "Edit Product" : "Add Product"}
+                      </h2>
                       <p className="mt-1 text-sm text-slate-300">
-                        Create a new listing with pricing and image.
+                        {editingProduct ? "Update the product details below." : "Create a new listing with pricing and image."}
                       </p>
                     </div>
                     <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white">
